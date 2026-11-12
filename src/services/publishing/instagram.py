@@ -57,7 +57,8 @@ class InstagramPublisher:
         brand = self.brand_registry.get(job.brand_id)
         topic = job.topic
         script = job.script_data or {}
-        cta = script.get("call_to_action", "")
+        scenes = script.get("scenes", [])
+        cta = script.get("call_to_action") or (scenes[-1].get("narration") if scenes else "")
 
         tags = [
             f"#{job.brand_id.lower()}",

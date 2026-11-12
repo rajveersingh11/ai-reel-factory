@@ -119,6 +119,23 @@ class ScriptGenerator:
         log.info("Generating script using deterministic template engine")
         return self._generate_deterministic(topic, sources, feedback)
 
+    def generate_script(
+        self,
+        topic: str,
+        brand: Any = None,
+        sources: Optional[list[ResearchSource]] = None,
+        feedback: Optional[str] = None,
+    ) -> ScriptData:
+        """Convenience alias for generate."""
+        if brand and hasattr(brand, "id"):
+            self.brand_id = brand.id.lower().strip()
+        elif isinstance(brand, str):
+            self.brand_id = brand.lower().strip()
+
+        from src.services.research.collector import ResearchCollector
+        srcs = sources or ResearchCollector(brand_id=self.brand_id).collect_sources(topic=topic)
+        return self.generate(topic=topic, sources=srcs, feedback=feedback)
+
     def _generate_via_ollama(
         self,
         topic: str,

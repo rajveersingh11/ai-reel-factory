@@ -182,39 +182,48 @@ with tab_script:
                 st.rerun()
     else:
         # Script Metadata
-        words = script.get("total_words", 0)
-        est_sec = script.get("estimated_duration_sec", 0.0)
-        facts = script.get("verified_facts", [])
+        scenes = script.get("scenes", [])
+        words = script.get("total_narration_words") or sum(len(s.get("narration", "").split()) for s in scenes)
+        est_sec = sum(s.get("duration_seconds", 12.0) for s in scenes)
+        sources = script.get("sources", [])
 
         sc_col1, sc_col2, sc_col3 = st.columns(3)
         sc_col1.metric("Word Count", words, "145–160 target")
         sc_col2.metric("Est. Duration", f"{est_sec:.1f}s", "55–65s target")
-        sc_col3.metric("Verified Facts", len(facts))
+        sc_col3.metric("Verified Fact Sources", len(sources))
 
         # Check for unbacked claims
-        scenes = script.get("scenes", [])
         flagged_scenes = [s for s in scenes if s.get("is_flagged", False)]
         if flagged_scenes:
             st.warning(
                 f"⚠️ Fact-Check Alert: {len(flagged_scenes)} scene(s) contain unbacked numeric claims! "
-                f"Verify or edit before approving."
+                f"Review or edit before approving."
             )
 
-        st.markdown(f"**Opening Hook:**")
-        st.info(script.get("hook", ""))
+        if scenes:
+            st.markdown(f"**Opening Hook (Scene 1):**")
+            st.info(scenes[0].get("narration", ""))
 
         st.markdown("**Scenes Breakdown:**")
-        for sc in scenes:
-            with st.expander(f"Scene {sc.get('scene_number', 1)}: {sc.get('visual_concept', '')[:50]}...", expanded=True):
-                st.markdown(f"🗣️ **Narration:** {sc.get('narration_text', '')}")
-                st.caption(f"🎨 **Visual Prompt:** {sc.get('visual_concept', '')}")
-                metric = sc.get("statistic_metric")
-                if metric:
-                    st.markdown(f"📊 **Stat Callout:** `{metric}` (Source: `{sc.get('source_citation', 'N/A')}`)")
+        for idx, sc in enumerate(scenes):
+            sc_order = sc.get("order", idx + 1)
+            vis_note = sc.get("visual_note", "") or sc.get("visual_concept", "")
+            with st.expander(f"Scene {sc_order}: {vis_note[:50]}...", expanded=True):
+                st.markdown(f"🗣️ **Narration:** {sc.get('narration', '')}")
+                if vis_note:
+                    st.caption(f"🎨 **Visual Direction:** {vis_note}")
+                claims = sc.get("numeric_claims", [])
+                for claim_item in claims:
+                    ver_icon = "✅" if claim_item.get("verified") else "⚠️"
+                    st.markdown(
+                        f"📊 **Stat Callout:** `{claim_item.get('claim')}` "
+                        f"({ver_icon} Source: `{claim_item.get('source_id')}`)"
+                    )
                 if sc.get("is_flagged"):
-                    st.error("🚩 Unbacked numeric claim detected in this scene.")
+                    st.error(f"🚩 Unbacked Claim Warning: {sc.get('flag_reason', 'Unverified numeric claim')}")
 
-        st.markdown(f"**Call to Action:** `{script.get('call_to_action', '')}`")
+        if len(scenes) > 1:
+            st.markdown(f"**Call to Action (Scene {len(scenes)}):** `{scenes[-1].get('narration', '')}`")
 
         # Gate 1 Decision Controls
         st.markdown("---")
@@ -234,28 +243,45 @@ with tab_script:
 
         with g1_col2:
             with st.popover("✏️ Edit Script"):
-                st.write("Edit narration text:")
-                new_hook = st.text_area("Hook", script.get("hook", ""))
-                new_cta = st.text_area("CTA", script.get("call_to_action", ""))
+                st.write("Edit scene narrations:")
+                edited_scenes = []
+                for i, sc in enumerate(scenes):
+                    new_text = st.text_area(
+                        f"Scene {i+1} Narration",
+                        sc.get("narration", ""),
+                        key=f"edit_sc_{job.id}_{i}",
+                        height=70,
+                    )
+                    sc_copy = dict(sc)
+                    sc_copy["narration"] = new_text
+                    edited_scenes.append(sc_copy)
+
                 if st.button("Save Edited Script"):
-                    script["hook"] = new_hook
-                    script["call_to_action"] = new_cta
+                    script["scenes"] = edited_scenes
+                    script["version"] = script.get("version", 1) + 1
+                    script["total_narration_words"] = sum(len(s["narration"].split()) for s in edited_scenes)
                     job.script_data = script
                     job.status = JobStatus.APPROVED
+                    job.stage = "script_edited_and_approved"
                     db.commit()
-                    st.success("Saved & approved!")
+                    st.success("Script updated & approved!")
                     st.rerun()
 
         with g1_col3:
             with st.popover("🔄 Regenerate"):
-                regen_feedback = st.text_input("Feedback prompt", placeholder="e.g. Make hook punchier")
+                regen_feedback = st.text_input("Feedback prompt", placeholder="e.g. Make hook punchier and emphasize ROI")
                 if st.button("Trigger Regeneration"):
-                    from src.services.llm.script_generator import ScriptGenerator
-                    gen = ScriptGenerator()
-                    new_script = gen.generate_script(job.topic, brand_map[job.brand_id], feedback=regen_feedback)
-                    job.script_data = new_script.model_dump()
-                    job.status = JobStatus.SCRIPT_APPROVAL_PENDING
-                    db.commit()
+                    with st.spinner("Regenerating script with feedback..."):
+                        from src.services.research.collector import ResearchCollector
+                        from src.services.llm.script_generator import ScriptGenerator
+                        collector = ResearchCollector(brand_id=job.brand_id)
+                        sources = collector.collect_sources(topic=job.topic)
+                        gen = ScriptGenerator(brand_id=job.brand_id)
+                        new_script = gen.generate(job.topic, sources=sources, feedback=regen_feedback)
+                        job.script_data = new_script.model_dump()
+                        job.status = JobStatus.SCRIPT_APPROVAL_PENDING
+                        job.stage = "script_approval_pending"
+                        db.commit()
                     st.success("Regenerated version created!")
                     st.rerun()
 
