@@ -31,6 +31,12 @@ try:
         task_reject_on_worker_lost=True,
         task_track_started=True,
         worker_pool="solo" if is_windows else "prefork",
+        broker_connection_retry=False,
+        broker_connection_retry_on_startup=False,
+        broker_connection_max_retries=1,
+        redis_max_connections=5,
+        result_backend_transport_options={"max_retries": 0},
     )
 except ImportError:
     celery_app = None
+

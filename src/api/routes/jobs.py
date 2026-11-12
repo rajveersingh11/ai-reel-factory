@@ -7,6 +7,7 @@ FastAPI endpoints for initiating and monitoring video production jobs.
 from __future__ import annotations
 
 import logging
+import socket
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
@@ -18,6 +19,18 @@ from src.workers.tasks import process_reel_job, execute_job_pipeline
 
 log = logging.getLogger("reelfactory.api")
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+def _is_redis_alive(host: str = "localhost", port: int = 6379) -> bool:
+    """Non-blocking 50ms probe to check if Redis broker is actively listening."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.05)
+        res = s.connect_ex((host, port))
+        s.close()
+        return res == 0
+    except Exception:
+        return False
 
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -43,7 +56,7 @@ def create_job(
 
     # 2. Dispatch worker task
     dispatched_via_celery = False
-    if process_reel_job:
+    if process_reel_job and _is_redis_alive():
         try:
             process_reel_job.delay(job.id)
             dispatched_via_celery = True
@@ -86,3 +99,4 @@ def list_jobs(
     if brand_id:
         query = query.filter(Job.brand_id == brand_id.lower().strip())
     return query.order_by(Job.created_at.desc()).limit(limit).all()
+

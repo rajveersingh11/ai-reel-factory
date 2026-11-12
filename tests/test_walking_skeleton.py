@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import BackgroundTasks
 from src.core.database import SessionLocal, init_db
 from src.schemas.job import JobCreateRequest
-from src.models.job import JobStatus
+from src.models.job import Job, JobStatus
 from src.api.routes.jobs import create_job, get_job_status, list_jobs
 from src.workers.tasks import execute_job_pipeline
 
@@ -39,11 +39,23 @@ def test_job_creation_and_lifecycle():
     assert job.status == JobStatus.PENDING
     assert job.stage == "queued"
 
-    # 2. Worker executes the job pipeline
-    result = execute_job_pipeline(job.id)
-    assert result["status"] == "completed"
+    # 2. Worker executes research + script generation, pausing at Gate 1
+    result1 = execute_job_pipeline(job.id)
+    assert result1["status"] == "waiting_for_approval"
 
-    # 3. Verify database persistence and final status
+    db.expire_all()
+    job = db.query(Job).filter(Job.id == job.id).first()
+    assert job.status == JobStatus.SCRIPT_APPROVAL_PENDING
+
+    # 3. Gate 1: Human approves script
+    job.status = JobStatus.APPROVED
+    db.commit()
+
+    # 4. Worker executes rendering on approved script
+    result2 = execute_job_pipeline(job.id)
+    assert result2["status"] == "completed"
+
+    # 5. Verify database persistence and final status
     db.expire_all()
     completed_job = get_job_status(job.id, db)
     assert completed_job.status == JobStatus.COMPLETED

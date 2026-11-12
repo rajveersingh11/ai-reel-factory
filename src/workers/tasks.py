@@ -22,7 +22,10 @@ log = logging.getLogger("reelfactory.worker")
 def execute_job_pipeline(job_id: str) -> dict:
     """
     Core pipeline worker logic.
-    Transitions job through states and records intermediate artifacts.
+    Enforces Requirement 4.A (Script Approval Gate):
+      1. If job is PENDING -> Generate research + script -> Pause at SCRIPT_APPROVAL_PENDING.
+      2. If job is APPROVED -> Execute video assembly -> COMPLETED.
+      3. Otherwise -> Block rendering.
     """
     db = SessionLocal()
     try:
@@ -31,17 +34,52 @@ def execute_job_pipeline(job_id: str) -> dict:
             log.error(f"Job not found: {job_id}")
             return {"status": "error", "message": "Job not found"}
 
-        log.info(f"Starting job execution: {job_id} (Brand: {job.brand_id})")
-        
-        # Step 1: Transition to PROCESSING / RENDERING
+        log.info(f"Worker processing job: {job_id} (Status: {job.status}, Brand: {job.brand_id})")
+
+        # --- Stage 1: Topic -> Research & Script Generation ---
+        if job.status == JobStatus.PENDING or not job.script_data:
+            from src.services.research.collector import ResearchCollector
+            from src.services.llm.script_generator import ScriptGenerator
+
+            job.status = JobStatus.RESEARCHING
+            job.stage = "research_and_scripting"
+            db.commit()
+
+            collector = ResearchCollector(brand_id=job.brand_id)
+            sources = collector.collect_sources(topic=job.topic)
+
+            generator = ScriptGenerator(brand_id=job.brand_id)
+            script = generator.generate(topic=job.topic, sources=sources)
+
+            job.script_data = script.model_dump()
+            job.status = JobStatus.SCRIPT_APPROVAL_PENDING
+            job.stage = "script_approval_pending"
+            job.updated_at = datetime.now(timezone.utc)
+            db.commit()
+
+            log.info(f"Job {job_id} halted at Gate 1: SCRIPT_APPROVAL_PENDING")
+            return {
+                "status": "waiting_for_approval",
+                "job_id": job_id,
+                "stage": job.stage,
+                "script": job.script_data,
+            }
+
+        # --- Gate 1 Check (Requirement 4.A): Must be APPROVED to render ---
+        if job.status != JobStatus.APPROVED:
+            err = (
+                f"Cannot render job {job_id}: status is '{job.status}'. "
+                f"Gate 1 human approval is mandatory before video rendering begins."
+            )
+            log.warning(err)
+            return {"status": "blocked", "job_id": job_id, "message": err}
+
+        # --- Stage 2: Approved Script -> Video Rendering ---
+        log.info(f"Rendering approved job {job_id}...")
         job.status = JobStatus.RENDERING
-        job.stage = "mock_video_rendering"
+        job.stage = "video_rendering"
         job.updated_at = datetime.now(timezone.utc)
         db.commit()
-
-        # Step 2: Processing (Walking Skeleton mock execution or test render)
-        # We simulate a 2-second pipeline step to verify async status polling
-        time.sleep(2.0)
 
         # Check if the Phase 1 rendered video exists to link it as a real output artifact
         rendered_spike = Path("spikes/phase1_rendering/output/reel_spike_v1.mp4").resolve()
@@ -81,3 +119,4 @@ if celery_app:
         return execute_job_pipeline(job_id)
 else:
     process_reel_job = None
+

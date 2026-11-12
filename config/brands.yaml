@@ -1,0 +1,32 @@
+brands:
+  skyon:
+    id: "skyon"
+    name: "SKYON IT SOLUTIONS"
+    tagline: "Enterprise AI & Cloud Automation"
+    target_audience: "Tech founders, CTOs, and modern enterprise leaders"
+    tone: "Insightful, confident, high-velocity, and authoritative"
+    primary_color: "#00D4FF"
+    secondary_color: "#0D1B2A"
+    accent_color: "#00E5FF"
+    font_family: "Inter Bold"
+    topics:
+      - "Enterprise AI Adoption"
+      - "Cloud Architecture & Cost Optimization"
+      - "Automated Engineering Workflows"
+      - "B2B SaaS Velocity"
+
+  r4realty:
+    id: "r4realty"
+    name: "R4Realty"
+    tagline: "Luxury Real Estate & High-Yield Assets"
+    target_audience: "High-net-worth investors, luxury home buyers, and commercial developers"
+    tone: "Sophisticated, exclusive, data-backed, and prestigious"
+    primary_color: "#D4AF37"
+    secondary_color: "#0A1912"
+    accent_color: "#2ECC71"
+    font_family: "Inter Bold"
+    topics:
+      - "Prime Architectural Villas"
+      - "Commercial Real Estate Yield Trends"
+      - "Luxury Waterfront Developments"
+      - "Real Estate Capital Allocation"

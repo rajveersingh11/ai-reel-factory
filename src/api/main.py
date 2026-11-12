@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.core.database import init_db
 from src.api.routes.jobs import router as jobs_router
+from src.api.routes.scripts import router as scripts_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -49,6 +50,7 @@ app.add_middleware(
 
 # Mount routes
 app.include_router(jobs_router, prefix="/api/v1")
+app.include_router(scripts_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
@@ -68,3 +70,4 @@ def root():
         "docs": "/docs",
         "health": "/health",
     }
+
