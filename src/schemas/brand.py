@@ -60,3 +60,4 @@ class BrandRegistry:
 
 # Global brand registry instance
 brand_registry = BrandRegistry()
+

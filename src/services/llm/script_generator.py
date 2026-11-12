@@ -177,7 +177,7 @@ class ScriptGenerator:
                     scene_id="s01",
                     order=1,
                     duration_seconds=10.0,
-                    narration="Luxury real estate in India is experiencing unprecedented momentum. High net worth investors are allocating record capital into prime residential and commercial assets.",
+                    narration="Luxury real estate across prime Indian metropolitan markets is experiencing unprecedented structural momentum. High net worth investors are allocating record capital into exclusive architectural villas and premier developments.",
                     keywords=["luxury villa", "modern architecture", "prime estate"],
                     visual_note="Cinematic drone shot of ultra-luxury villa with infinity pool",
                     numeric_claims=[],
@@ -186,7 +186,7 @@ class ScriptGenerator:
                     scene_id="s02",
                     order=2,
                     duration_seconds=12.0,
-                    narration="According to latest market data, luxury housing sales surged by over 75 percent year-on-year across top metropolitan markets. Prime inventory is moving at record speed.",
+                    narration="According to latest industry data, luxury housing sales surged by over 75 percent year-on-year across top tier cities. Premium gated inventory and penthouses are being acquired at record transaction speed.",
                     keywords=["real estate market", "luxury housing growth", "market chart"],
                     visual_note="Dynamic architectural interior with market statistic overlay",
                     numeric_claims=[
@@ -201,7 +201,7 @@ class ScriptGenerator:
                     scene_id="s03",
                     order=3,
                     duration_seconds=12.0,
-                    narration="Capital appreciation has outpaced conventional equities. Prime gated developments and beachfront estates delivered an average annual yield of 14.5 percent.",
+                    narration="Capital appreciation has consistently outpaced traditional financial assets. Prime waterfront properties and private residences delivered an average annual yield of 14.5 percent over the past three fiscal quarters.",
                     keywords=["high yield investment", "capital appreciation", "luxury property"],
                     visual_note="Waterfront architectural terrace at sunset",
                     numeric_claims=[
@@ -216,7 +216,7 @@ class ScriptGenerator:
                     scene_id="s04",
                     order=4,
                     duration_seconds=12.0,
-                    narration="Smart investors aren't just buying residences. They are locking in legacy wealth with high rental yields and long-term asset protection.",
+                    narration="Discerning capital allocators are not merely purchasing residential comfort. They are strategically locking in multi-generational wealth, robust rental yields, and inflation-protected physical real estate portfolios.",
                     keywords=["wealth protection", "real estate portfolio", "investor boardroom"],
                     visual_note="High-end boardroom consultation with architectural blueprint",
                     numeric_claims=[],
@@ -225,14 +225,14 @@ class ScriptGenerator:
                     scene_id="s05",
                     order=5,
                     duration_seconds=11.0,
-                    narration="At R4Realty, we curate the most exclusive luxury properties for discerning investors. Secure your next prime architectural acquisition today.",
+                    narration="At R4Realty, we curate the most distinguished private luxury real estate opportunities for sophisticated investors. Connect with our advisory partners and acquire your next prime asset today.",
                     keywords=["R4Realty logo", "luxury closing", "investment portfolio"],
                     visual_note="Branded closing screen with gold luxury aesthetic",
                     numeric_claims=[],
                 ),
             ]
         else:
-            # Default to SKYON IT SOLUTIONS
+            # Default to SKYON IT SOLUTIONS (150-155 words -> 56.5s to 57.5s)
             s1_source = sources[0].source_id if sources else "DPIIT-2024-Q3"
             s2_source = sources[1].source_id if len(sources) > 1 else s1_source
             s3_source = sources[2].source_id if len(sources) > 2 else s1_source
@@ -243,9 +243,9 @@ class ScriptGenerator:
                     scene_id="s01",
                     order=1,
                     duration_seconds=10.0,
-                    narration="India is now home to over 1.5 lakh registered startups. And more founders than ever are leveraging automated artificial intelligence tools to move faster and compete globally.",
-                    keywords=["Indian startups", "technology innovation", "tech office"],
-                    visual_note="Aerial shot of modern tech park skyline",
+                    narration="India is now home to over 1.5 lakh registered startups. And more of them than ever are turning to artificial intelligence to cut costs, move faster, and compete globally.",
+                    keywords=["India startups", "artificial intelligence", "technology growth"],
+                    visual_note="Aerial city shot or tech hub footage",
                     numeric_claims=[
                         NumericClaim(
                             claim="over 1.5 lakh registered startups",
@@ -258,9 +258,9 @@ class ScriptGenerator:
                     scene_id="s02",
                     order=2,
                     duration_seconds=12.0,
-                    narration="AI adoption is slashing operational costs by up to 40 percent for growing teams. Tasks that once required large departments now run seamlessly on automated engineering pipelines.",
-                    keywords=["AI automation", "cost reduction", "engineering dashboard"],
-                    visual_note="Automated workflow graph and metric visual",
+                    narration="AI tools are slashing operational costs by up to 40 percent for early-stage companies. Tasks that once needed entire teams — customer support, content creation, data analysis — now run on automated pipelines.",
+                    keywords=["AI tools", "cost reduction", "automation", "startup operations"],
+                    visual_note="Dashboard or workflow automation graphics",
                     numeric_claims=[
                         NumericClaim(
                             claim="slashing operational costs by up to 40 percent",
@@ -273,9 +273,9 @@ class ScriptGenerator:
                     scene_id="s03",
                     order=3,
                     duration_seconds=12.0,
-                    narration="Speed is the decisive advantage. Software teams using automated workflows ship products nearly twice as fast as their legacy competitors.",
-                    keywords=["fast development", "speed to market", "coding velocity"],
-                    visual_note="Fast code deploy terminal and product launch sequence",
+                    narration="Speed is the other major driver. Startups using AI ship products nearly twice as fast as those that don't. In a market where timing is everything, that edge is decisive.",
+                    keywords=["product development", "speed", "competitive advantage"],
+                    visual_note="Fast-paced coding or product launch footage",
                     numeric_claims=[
                         NumericClaim(
                             claim="ship products nearly twice as fast",
@@ -287,10 +287,10 @@ class ScriptGenerator:
                 SceneScript(
                     scene_id="s04",
                     order=4,
-                    duration_seconds=12.0,
-                    narration="Recruiting has also transformed. Intelligent screening tools now help engineering leaders evaluate and onboard top technical talent five times faster.",
-                    keywords=["talent screening", "remote work", "engineering recruitment"],
-                    visual_note="Video interview screen and technical assessment scorecard",
+                    duration_seconds=13.0,
+                    narration="Even hiring has changed. AI-assisted recruiting tools help founders screen candidates five times faster. And with remote-first culture now standard, finding talent globally has never been easier.",
+                    keywords=["AI hiring", "recruitment", "remote work", "talent"],
+                    visual_note="Video call or interview screen footage",
                     numeric_claims=[
                         NumericClaim(
                             claim="five times faster",
@@ -303,11 +303,12 @@ class ScriptGenerator:
                     scene_id="s05",
                     order=5,
                     duration_seconds=11.0,
-                    narration="In 2025, AI is not an optional luxury for high-growth companies. It is the core foundation. Build smarter and ship faster with SKYON IT SOLUTIONS.",
-                    keywords=["SKYON IT SOLUTIONS", "AI foundation", "future of tech"],
-                    visual_note="Branded closing screen with animated logo and call to action",
+                    narration="The message is clear: in 2025, AI is not a luxury for high-growth companies. It is the foundation. The founders who build with AI from day one are the ones rewriting the rules with SKYON IT SOLUTIONS.",
+                    keywords=["India entrepreneurship", "AI future", "startup success"],
+                    visual_note="Inspirational founder or team footage",
                     numeric_claims=[],
                 ),
             ]
 
         return ScriptData(meta=meta, scenes=scenes, sources=sources)
+

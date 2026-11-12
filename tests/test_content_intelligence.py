@@ -167,14 +167,23 @@ def test_script_approval_gate_workflow():
     job = db.query(Job).filter(Job.id == job.id).first()
     assert job.status == JobStatus.APPROVED
 
-    # 6. Now that job is APPROVED, worker executes video rendering -> COMPLETED
+    # 6. Now that job is APPROVED, worker executes video rendering -> pauses at Gate 2
     render_res = execute_job_pipeline(job.id)
     assert render_res["status"] == "completed"
 
     db.expire_all()
+    rendered_job = db.query(Job).filter(Job.id == job.id).first()
+    assert rendered_job.status == JobStatus.FINAL_APPROVAL_PENDING
+    assert rendered_job.video_path is not None
+
+    # Gate 2: Approve video
+    rendered_job.status = JobStatus.COMPLETED
+    rendered_job.stage = "approved_for_publishing"
+    db.commit()
+
+    db.expire_all()
     completed_job = db.query(Job).filter(Job.id == job.id).first()
     assert completed_job.status == JobStatus.COMPLETED
-    assert completed_job.video_path is not None
 
     db.close()
 

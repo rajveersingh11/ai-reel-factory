@@ -51,17 +51,27 @@ def test_job_creation_and_lifecycle():
     job.status = JobStatus.APPROVED
     db.commit()
 
-    # 4. Worker executes rendering on approved script
+    # 4. Worker executes rendering on approved script -> pauses at Gate 2
     result2 = execute_job_pipeline(job.id)
     assert result2["status"] == "completed"
 
-    # 5. Verify database persistence and final status
+    # 5. Verify database persistence at Gate 2 (FINAL_APPROVAL_PENDING)
+    db.expire_all()
+    rendered_job = get_job_status(job.id, db)
+    assert rendered_job.status == JobStatus.FINAL_APPROVAL_PENDING
+    assert rendered_job.stage == "final_approval_pending"
+    assert rendered_job.video_path is not None
+    assert rendered_job.updated_at >= rendered_job.created_at
+
+    # Gate 2: Final human video approval transitions to COMPLETED
+    rendered_job.status = JobStatus.COMPLETED
+    rendered_job.stage = "completed"
+    db.commit()
+
     db.expire_all()
     completed_job = get_job_status(job.id, db)
     assert completed_job.status == JobStatus.COMPLETED
     assert completed_job.stage == "completed"
-    assert completed_job.video_path is not None
-    assert completed_job.updated_at >= completed_job.created_at
 
     db.close()
 

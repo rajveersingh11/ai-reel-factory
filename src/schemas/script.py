@@ -125,3 +125,4 @@ class ScriptApprovalDecision(BaseModel):
         default=None,
         description="Required if decision is 'edit'",
     )
+

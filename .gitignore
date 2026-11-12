@@ -26,6 +26,8 @@ build/
 # Storage — generated assets, never commit large media
 storage/cache/*
 storage/output/*
+storage/jobs/*
+storage/*.db
 !storage/cache/.gitkeep
 !storage/output/.gitkeep
 

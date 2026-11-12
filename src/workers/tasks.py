@@ -81,21 +81,43 @@ def execute_job_pipeline(job_id: str) -> dict:
         job.updated_at = datetime.now(timezone.utc)
         db.commit()
 
-        # Check if the Phase 1 rendered video exists to link it as a real output artifact
-        rendered_spike = Path("spikes/phase1_rendering/output/reel_spike_v1.mp4").resolve()
-        if rendered_spike.exists():
-            job.video_path = str(rendered_spike)
-        else:
-            job.video_path = f"storage/output/{job_id}.mp4"
+        from src.services.video.production_pipeline import ProductionPipeline
+        from src.schemas.script import ScriptData
+        from src.core.config import settings
 
-        # Step 3: Transition to COMPLETED
-        job.status = JobStatus.COMPLETED
-        job.stage = "completed"
+        pipeline = ProductionPipeline(brand_id=job.brand_id)
+        script_obj = ScriptData(**job.script_data)
+        job_output_dir = settings.STORAGE_ROOT / "jobs" / job_id
+
+        final_video_path, qc_report = pipeline.produce(
+            script=script_obj,
+            output_dir=job_output_dir,
+            job_id=job_id,
+        )
+
+        job.video_path = str(final_video_path.resolve())
+        job.qc_report = qc_report.to_dict()
+
+        if qc_report.overall_passed:
+            # Gate 2 (Requirement 4.F): Stop and hold for Final Human Approval before publishing!
+            job.status = JobStatus.FINAL_APPROVAL_PENDING
+            job.stage = "final_approval_pending"
+            log.info(f"Job {job_id} rendered and passed QC. Halted at Gate 2: FINAL_APPROVAL_PENDING")
+        else:
+            job.status = JobStatus.FAILED
+            job.stage = "qc_failed"
+            job.error_message = f"QC inspection failed with {qc_report.fatal_errors} fatal error(s)."
+            log.error(f"Job {job_id} failed QC checks.")
+
         job.updated_at = datetime.now(timezone.utc)
         db.commit()
 
-        log.info(f"Job successfully completed: {job_id}")
-        return {"status": "completed", "job_id": job_id, "video_path": job.video_path}
+        return {
+            "status": "completed" if qc_report.overall_passed else "failed",
+            "job_id": job_id,
+            "video_path": job.video_path,
+            "qc_passed": qc_report.overall_passed,
+        }
 
     except Exception as exc:
         log.exception(f"Job execution failed: {job_id} — {exc}")
