@@ -56,5 +56,11 @@ class Settings(BaseSettings):
     TARGET_DURATION_MAX: float = 65.0
     TARGET_LOUDNESS_LUFS: float = -14.0
 
+    # --- Publishing & Meta Graph API (Phase 5) ---
+    META_GRAPH_API_VERSION: str = "v21.0"
+    INSTAGRAM_ACCESS_TOKEN: str = ""
+    INSTAGRAM_BUSINESS_ACCOUNT_ID: str = ""
+    PUBLIC_BASE_URL: str = "http://localhost:8000"
+
 
 settings = Settings()

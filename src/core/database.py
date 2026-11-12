@@ -42,10 +42,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db() -> None:
-    """Create all registered database tables."""
+    """Create all registered database tables and apply lightweight dev migrations."""
     # Ensure models are imported so their metadata is attached to Base
     import src.models.job  # noqa: F401
     Base.metadata.create_all(bind=engine)
+
+    # Lightweight dev column migration for existing SQLite databases
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            res = conn.execute(text("PRAGMA table_info(jobs)"))
+            cols = [r[1] for r in res.fetchall()]
+            if cols:
+                if "instagram_media_id" not in cols:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN instagram_media_id VARCHAR(100)"))
+                if "instagram_permalink" not in cols:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN instagram_permalink VARCHAR(500)"))
+                if "published_at" not in cols:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN published_at DATETIME"))
+                conn.commit()
+    except Exception as e:
+        log.warning(f"Dev database schema sync note: {e}")
 
 
 def get_db() -> Generator[Session, None, None]:

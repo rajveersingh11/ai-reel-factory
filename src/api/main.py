@@ -16,6 +16,7 @@ from src.core.database import init_db
 from src.api.routes.jobs import router as jobs_router
 from src.api.routes.scripts import router as scripts_router
 from src.api.routes.production import router as production_router
+from src.api.routes.publishing import router as publishing_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,6 +54,7 @@ app.add_middleware(
 app.include_router(jobs_router, prefix="/api/v1")
 app.include_router(scripts_router, prefix="/api/v1")
 app.include_router(production_router, prefix="/api/v1")
+app.include_router(publishing_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

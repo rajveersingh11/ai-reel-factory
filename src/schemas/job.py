@@ -29,5 +29,8 @@ class JobResponse(BaseModel):
     video_path: Optional[str] = None
     qc_report: Optional[dict[str, Any]] = None
     error_message: Optional[str] = None
+    instagram_media_id: Optional[str] = None
+    instagram_permalink: Optional[str] = None
+    published_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

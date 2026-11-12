@@ -10,7 +10,9 @@ import logging
 import socket
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from pathlib import Path
 
 from src.core.database import get_db
 from src.models.job import Job, JobStatus
@@ -38,7 +40,7 @@ def create_job(
     request: JobCreateRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-) -> Job:
+):
     """
     Initiate a new Reel production job.
     Persists job record and dispatches an asynchronous worker task.
@@ -73,7 +75,7 @@ def create_job(
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-def get_job_status(job_id: str, db: Session = Depends(get_db)) -> Job:
+def get_job_status(job_id: str, db: Session = Depends(get_db)):
     """
     Retrieve real-time processing status and output metadata for a given job.
     """
@@ -91,7 +93,7 @@ def list_jobs(
     brand_id: Optional[str] = None,
     limit: int = 20,
     db: Session = Depends(get_db),
-) -> list[Job]:
+):
     """
     List jobs, optionally filtered by brand_id (Requirement 4.B).
     """
@@ -99,4 +101,24 @@ def list_jobs(
     if brand_id:
         query = query.filter(Job.brand_id == brand_id.lower().strip())
     return query.order_by(Job.created_at.desc()).limit(limit).all()
+
+
+@router.get("/{job_id}/video")
+def get_job_video(job_id: str, db: Session = Depends(get_db)):
+    """
+    Serve the rendered MP4 video file for playback or Meta Graph API ingest.
+    """
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' not found.")
+    if not job.video_path or not Path(job.video_path).exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Video file for job '{job_id}' has not been rendered yet.",
+        )
+    return FileResponse(
+        path=job.video_path,
+        media_type="video/mp4",
+        filename=f"reel_{job.id}.mp4",
+    )
 

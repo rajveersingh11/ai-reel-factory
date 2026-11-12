@@ -90,7 +90,6 @@ def test_gate_2_final_video_approval_workflow():
 
     db.expire_all()
     rendered_job = db.query(Job).filter(Job.id == job.id).first()
-    assert rendered_job is not None
     
     # Must halt at Gate 2: FINAL_APPROVAL_PENDING
     assert rendered_job.status == JobStatus.FINAL_APPROVAL_PENDING
@@ -113,7 +112,6 @@ def test_gate_2_final_video_approval_workflow():
 
     db.expire_all()
     final_job = db.query(Job).filter(Job.id == job.id).first()
-    assert final_job is not None
     assert final_job.status == JobStatus.COMPLETED
     assert final_job.stage == "approved_for_publishing"
 
