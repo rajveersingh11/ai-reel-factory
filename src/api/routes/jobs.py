@@ -38,7 +38,7 @@ def create_job(
     request: JobCreateRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-):
+) -> Job:
     """
     Initiate a new Reel production job.
     Persists job record and dispatches an asynchronous worker task.
@@ -73,7 +73,7 @@ def create_job(
 
 
 @router.get("/{job_id}", response_model=JobResponse)
-def get_job_status(job_id: str, db: Session = Depends(get_db)):
+def get_job_status(job_id: str, db: Session = Depends(get_db)) -> Job:
     """
     Retrieve real-time processing status and output metadata for a given job.
     """
@@ -91,7 +91,7 @@ def list_jobs(
     brand_id: Optional[str] = None,
     limit: int = 20,
     db: Session = Depends(get_db),
-):
+) -> list[Job]:
     """
     List jobs, optionally filtered by brand_id (Requirement 4.B).
     """

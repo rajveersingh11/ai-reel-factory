@@ -33,6 +33,7 @@ from src.api.routes.scripts import (
     get_job_script,
     submit_script_decision,
 )
+from src.api.routes.production import submit_video_decision, VideoApprovalDecision
 from src.workers.tasks import execute_job_pipeline
 
 
@@ -137,6 +138,7 @@ def test_script_approval_gate_workflow():
 
     db.expire_all()
     job = db.query(Job).filter(Job.id == job.id).first()
+    assert job is not None
     assert job.status == JobStatus.SCRIPT_APPROVAL_PENDING
 
     # 3. Test Human Decision: REGENERATE with feedback
@@ -165,6 +167,7 @@ def test_script_approval_gate_workflow():
 
     db.expire_all()
     job = db.query(Job).filter(Job.id == job.id).first()
+    assert job is not None
     assert job.status == JobStatus.APPROVED
 
     # 6. Now that job is APPROVED, worker executes video rendering -> pauses at Gate 2
@@ -173,17 +176,23 @@ def test_script_approval_gate_workflow():
 
     db.expire_all()
     rendered_job = db.query(Job).filter(Job.id == job.id).first()
+    assert rendered_job is not None
     assert rendered_job.status == JobStatus.FINAL_APPROVAL_PENDING
     assert rendered_job.video_path is not None
 
     # Gate 2: Approve video
-    rendered_job.status = JobStatus.COMPLETED
-    rendered_job.stage = "approved_for_publishing"
-    db.commit()
+    approval_res = submit_video_decision(
+        job_id=job.id,
+        decision_payload=VideoApprovalDecision(decision="approve"),
+        db=db,
+    )
+    assert approval_res["decision"] == "approved"
 
     db.expire_all()
     completed_job = db.query(Job).filter(Job.id == job.id).first()
+    assert completed_job is not None
     assert completed_job.status == JobStatus.COMPLETED
+    assert completed_job.stage == "approved_for_publishing"
 
     db.close()
 
@@ -206,6 +215,7 @@ def test_script_rejection_halts_job():
 
     db.expire_all()
     rejected_job = db.query(Job).filter(Job.id == job.id).first()
+    assert rejected_job is not None
     assert rejected_job.status == JobStatus.REJECTED
 
     # Any attempt to render rejected job is permanently blocked
