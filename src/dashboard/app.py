@@ -36,7 +36,7 @@ init_db()
 
 # Load brand registry
 registry = BrandRegistry()
-all_brands = registry.list_all()
+all_brands = registry.list_brands()
 brand_map = {b.id: b for b in all_brands}
 
 

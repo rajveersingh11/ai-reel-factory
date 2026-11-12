@@ -57,6 +57,10 @@ class BrandRegistry:
     def list_brands(self) -> list[BrandConfig]:
         return list(self._brands.values())
 
+    def list_all(self) -> list[BrandConfig]:
+        """Alias for list_brands."""
+        return self.list_brands()
+
 
 # Global brand registry instance
 brand_registry = BrandRegistry()
