@@ -37,6 +37,10 @@ OUTPUT_DIR = SPIKE_DIR / "output"
 ASSETS_DIR = PROJECT_ROOT / "assets"
 FONTS_DIR = ASSETS_DIR / "fonts"
 
+# Add src to path for access to internal services
+if str(PROJECT_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
 SCRIPT_PATH = SPIKE_DIR / "sample_script.json"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -73,6 +77,21 @@ FFMPEG  = _find_tool("ffmpeg")
 FFPROBE = _find_tool("ffprobe")
 PIPER   = _find_tool("piper")
 
+# Piper invocation: prefer standalone binary, fall back to `python -m piper`
+# python -m piper works even when the piper script isn't on PATH
+def _piper_cmd() -> list[str]:
+    """Return the command prefix to invoke Piper TTS."""
+    if PIPER:
+        return [PIPER]
+    # Check if piper is importable (installed as a Python package)
+    try:
+        import importlib.util
+        if importlib.util.find_spec("piper") is not None:
+            return [sys.executable, "-m", "piper"]
+    except Exception:
+        pass
+    return []
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -96,6 +115,12 @@ def check_dependencies() -> dict[str, str | bool]:
         results[tool] = resolved or False
         status = f"  {'✅' if resolved else '❌'} {tool}: {resolved or 'NOT FOUND'}"
         log.info(status)
+
+    # Piper may be installed as a Python package even if not on PATH
+    piper_cmd = _piper_cmd()
+    if piper_cmd and not PIPER:
+        log.info(f"  ✅ piper (python -m piper): available via {sys.executable}")
+        results["piper"] = "python -m piper"
 
     # Python packages
     for pkg in ("faster_whisper",):
@@ -131,11 +156,11 @@ def synthesize_narration(
     script: dict,
     voice_model_path: Path,
     output_wav: Path,
-    piper_binary: str = "piper",
 ) -> Path:
     """
     Concatenate all scene narrations and synthesize to a single WAV file.
     Uses Piper TTS with ONNX CPU inference.
+    Invokes via `python -m piper` if the piper binary isn't on PATH.
     """
     full_narration = " ".join(s["narration"] for s in script["scenes"])
     log.info(f"Synthesizing {len(full_narration.split())} words via Piper TTS...")
@@ -143,16 +168,21 @@ def synthesize_narration(
     if not voice_model_path.exists():
         raise FileNotFoundError(
             f"Piper voice model not found: {voice_model_path}\n"
-            f"Download with: python -m piper --download-voice en_US-lessac-medium"
+            f"Download with the instructions in README.md"
         )
+
+    piper_cmd = _piper_cmd()
+    if not piper_cmd:
+        raise RuntimeError("Piper TTS is not installed. Run: python -m pip install piper-tts")
+
+    cmd = piper_cmd + [
+        "--model", str(voice_model_path),
+        "--output_file", str(output_wav),
+    ]
 
     t0 = time.perf_counter()
     result = subprocess.run(
-        [
-            piper_binary,
-            "--model", str(voice_model_path),
-            "--output_file", str(output_wav),
-        ],
+        cmd,
         input=full_narration,
         text=True,
         capture_output=True,
@@ -319,53 +349,125 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Generate a test card video (no stock footage needed for spike)
+# Step 4: Generate visual background (Stock Video or Branded Scene Cards)
 # ---------------------------------------------------------------------------
-def generate_test_card(output_path: Path, duration_seconds: float) -> Path:
+def get_audio_duration(audio_path: Path) -> float:
+    """Return exact duration of an audio file in seconds."""
+    cmd = [
+        FFPROBE, "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(audio_path),
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except Exception:
+        return 60.0
+
+
+def generate_visual_background(script: dict, audio_duration: float, output_path: Path) -> Path:
     """
-    Generate a solid-color 1080x1920 background video using FFmpeg's lavfi source.
-    Uses a branded gradient-style background (dark navy → deep blue).
-    No stock footage dependency for the spike.
+    Generate dynamic branded scene-by-scene visual cards for the video background.
+    If a real stock video exists at assets/stock/sample_vertical.mp4, it uses that.
+    Otherwise, generates rich branded motion graphics for each scene (Requirement 4.D).
     """
-    log.info(f"Generating {duration_seconds:.1f}s test card background (1080x1920)...")
+    stock_candidate = ASSETS_DIR / "stock" / "sample_vertical.mp4"
+    if stock_candidate.exists():
+        log.info(f"Using stock video footage: {stock_candidate}")
+        # Scale & crop to 1080x1920, loop to audio_duration
+        cmd = [
+            FFMPEG, "-y",
+            "-stream_loop", "-1",
+            "-i", str(stock_candidate),
+            "-t", str(audio_duration),
+            "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-pix_fmt", "yuv420p", "-an",
+            str(output_path),
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0:
+            return output_path
+        log.warning(f"Stock video processing failed: {res.stderr}")
+
+    log.info(f"Generating dynamic branded scene cards for each script scene ({audio_duration:.1f}s)...")
+    from services.video.cards import render_scene_card
+
+    cards_dir = OUTPUT_DIR / "cards"
+    cards_dir.mkdir(exist_ok=True)
+
+    scenes = script["scenes"]
+    total_scenes = len(scenes)
+    brand_id = script.get("meta", {}).get("brand_id", "skyon").upper()
+    brand_name = "SKYON IT SOLUTIONS" if "SKYON" in brand_id else brand_id
+
+    # Fallback/default content mappings for the 5 scenes
+    scene_card_meta = [
+        ("Ecosystem Growth", "1.5 LAKH+", "Registered Startups across India"),
+        ("AI Cost Efficiency", "-40% COSTS", "Slashing Startup Ops Overhead"),
+        ("Product Velocity", "2X SPEED", "Faster Shipping & Time-to-Market"),
+        ("Recruitment Tech", "5X FASTER", "AI-Assisted Candidate Screening"),
+        ("Key Takeaway", "AI FOUNDATION", "Essential Startup DNA in 2025"),
+    ]
+
+    card_paths = []
+    # Calculate scene durations proportional to audio_duration
+    script_total_sec = sum(s.get("duration_seconds", 10) for s in scenes)
+    time_scale = audio_duration / script_total_sec if script_total_sec > 0 else 1.0
+
+    scene_durations = []
+    for i, s in enumerate(scenes):
+        cat, metric, label = scene_card_meta[min(i, len(scene_card_meta)-1)]
+        source = None
+        claims = s.get("numeric_claims", [])
+        if claims and claims[0].get("verified"):
+            source = claims[0].get("source_id", "Verified Data")
+
+        card_p = cards_dir / f"scene_{i+1}.png"
+        render_scene_card(
+            scene_idx=i,
+            total_scenes=total_scenes,
+            brand_name=brand_name,
+            category_tag=cat,
+            metric_text=metric,
+            metric_label=label,
+            source_citation=source,
+            output_path=card_p,
+        )
+        card_paths.append(card_p)
+        dur = s.get("duration_seconds", 10) * time_scale
+        scene_durations.append(dur)
+
+    # Build concat file for FFmpeg
+    concat_file = OUTPUT_DIR / "cards_concat.txt"
+    lines = []
+    for cp, dur in zip(card_paths, scene_durations):
+        # Forward slashes for FFmpeg concat file
+        resolved = cp.resolve().as_posix()
+        lines.append(f"file '{resolved}'")
+        lines.append(f"duration {dur:.2f}")
+    # Concat demuxer needs last file repeated
+    lines.append(f"file '{card_paths[-1].resolve().as_posix()}'")
+    concat_file.write_text("\n".join(lines), encoding="utf-8")
 
     cmd = [
         FFMPEG, "-y",
-        # Input: color source (dark navy background)
-        "-f", "lavfi",
-        "-i", f"color=c=0x0D1B2A:size=1080x1920:rate=30:duration={duration_seconds}",
-        # Simple text overlay using drawtext (no libass needed for the card itself)
-        "-vf", (
-            "drawtext=text='AI REEL FACTORY':fontsize=72:fontcolor=white"
-            ":x=(w-text_w)/2:y=(h/2)-80:box=0,"
-            "drawtext=text='Phase 1 Spike':fontsize=48:fontcolor=0xAAAAAA"
-            ":x=(w-text_w)/2:y=(h/2)+20:box=0"
-        ),
+        "-f", "concat",
+        "-safe", "0",
+        "-i", str(concat_file),
+        "-vf", "fps=30,format=yuv420p",
         "-c:v", "libx264",
         "-preset", "fast",
-        "-crf", "23",
+        "-crf", "20",
         "-pix_fmt", "yuv420p",
-        "-an",  # No audio — audio added in final compose step
+        "-an",
         str(output_path),
     ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode != 0:
+        raise RuntimeError(f"Scene cards assembly failed:\n{res.stderr}")
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        log.warning(f"Test card drawtext failed (font issue?), falling back to plain color card")
-        log.debug(result.stderr)
-        # Fallback: plain color, no text
-        cmd_fallback = [
-            FFMPEG, "-y",
-            "-f", "lavfi",
-            "-i", f"color=c=0x0D1B2A:size=1080x1920:rate=30:duration={duration_seconds}",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p", "-an",
-            str(output_path),
-        ]
-        result2 = subprocess.run(cmd_fallback, capture_output=True, text=True)
-        if result2.returncode != 0:
-            raise RuntimeError(f"Test card generation failed:\n{result2.stderr}")
-
-    log.info(f"  Background card: {output_path.name}")
+    log.info(f"  Visual background ready: {output_path.name}")
     return output_path
 
 
@@ -554,8 +656,9 @@ def main() -> int:
     deps = check_dependencies()
     ffmpeg_ok = bool(deps.get("ffmpeg"))
     ffprobe_ok = bool(deps.get("ffprobe"))
-    piper_ok = bool(deps.get("piper"))
     whisper_ok = bool(deps.get("faster_whisper"))
+    piper_cmd = _piper_cmd()
+    piper_ok = bool(piper_cmd)
 
     if not ffmpeg_ok or not ffprobe_ok:
         log.error("FFmpeg/FFprobe not found. Ensure it's installed and PATH is set.")
@@ -594,9 +697,10 @@ def main() -> int:
         log.warning("⚠️  faster-whisper not installed — generating placeholder subtitles")
         _write_placeholder_ass(script, ass_path)
 
-    # --- Generate background video ---
+    # --- Generate visual background (Stock Video or Branded Scene Cards) ---
+    actual_audio_sec = get_audio_duration(wav_path)
     bg_video_path = OUTPUT_DIR / "background.mp4"
-    generate_test_card(bg_video_path, total_duration)
+    generate_visual_background(script, actual_audio_sec, bg_video_path)
 
     # --- Final composition ---
     final_output = OUTPUT_DIR / "reel_spike_v1.mp4"
