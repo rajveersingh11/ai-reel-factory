@@ -12,10 +12,29 @@ Usage:
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Tool resolution — same pattern as test_render.py
+# ---------------------------------------------------------------------------
+_WINGET_BASE = Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
+
+def _find_tool(name: str) -> str | None:
+    found = shutil.which(name)
+    if found:
+        return found
+    if name in ("ffmpeg", "ffprobe"):
+        for candidate in _WINGET_BASE.glob(f"Gyan.FFmpeg_*/*/bin/{name}.exe"):
+            if candidate.exists():
+                return str(candidate)
+    return None
+
+FFMPEG  = _find_tool("ffmpeg")
+FFPROBE = _find_tool("ffprobe")
 
 
 # ---------------------------------------------------------------------------
@@ -80,8 +99,10 @@ class QCReport:
 
 def probe_video(video_path: Path) -> dict:
     """Run ffprobe and return parsed JSON output."""
+    if not FFPROBE:
+        raise RuntimeError("ffprobe not found. Install FFmpeg via: winget install Gyan.FFmpeg")
     cmd = [
-        "ffprobe", "-v", "quiet",
+        FFPROBE, "-v", "quiet",
         "-print_format", "json",
         "-show_streams",
         "-show_format",
@@ -98,8 +119,10 @@ def measure_loudness(video_path: Path) -> dict | None:
     Use FFmpeg's ebur128 filter to measure integrated loudness (LUFS).
     Returns dict with 'I' (integrated LUFS), 'TP' (true peak dBFS), 'LRA'.
     """
+    if not FFMPEG:
+        return None
     cmd = [
-        "ffmpeg", "-i", str(video_path),
+        FFMPEG, "-i", str(video_path),
         "-af", "ebur128=peak=true",
         "-f", "null", "-",
     ]
@@ -134,8 +157,10 @@ def detect_silence(video_path: Path, max_gap: float = MAX_SILENCE_GAP_SECONDS) -
     Use FFmpeg's silencedetect filter to find silence gaps.
     Returns list of silence periods that exceed the threshold.
     """
+    if not FFMPEG:
+        return []
     cmd = [
-        "ffmpeg", "-i", str(video_path),
+        FFMPEG, "-i", str(video_path),
         "-af", f"silencedetect=noise=-40dB:d={max_gap}",
         "-f", "null", "-",
     ]
@@ -324,3 +349,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

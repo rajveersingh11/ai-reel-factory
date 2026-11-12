@@ -41,6 +41,39 @@ SCRIPT_PATH = SPIKE_DIR / "sample_script.json"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # ---------------------------------------------------------------------------
+# Tool resolution — handles restricted PATH environments (AppLocker / sandbox)
+# Checks shutil.which() first, then probes known WinGet install locations.
+# ---------------------------------------------------------------------------
+_WINGET_BASE = Path.home() / "AppData/Local/Microsoft/WinGet/Packages"
+
+def _find_tool(name: str) -> str | None:
+    """Return absolute path to a CLI tool, or None if not found."""
+    # 1. Try PATH first
+    found = shutil.which(name)
+    if found:
+        return found
+    # 2. Probe WinGet packages (Gyan.FFmpeg pattern)
+    if name in ("ffmpeg", "ffprobe"):
+        for candidate in _WINGET_BASE.glob(f"Gyan.FFmpeg_*/*/bin/{name}.exe"):
+            if candidate.exists():
+                return str(candidate)
+    # 3. Common explicit install paths
+    explicit = {
+        "ffmpeg":  [r"C:\Program Files\FFmpeg\bin\ffmpeg.exe"],
+        "ffprobe": [r"C:\Program Files\FFmpeg\bin\ffprobe.exe"],
+        "piper":   [r"C:\Program Files\piper\piper.exe"],
+    }
+    for path in explicit.get(name, []):
+        if Path(path).exists():
+            return path
+    return None
+
+# Resolved tool paths (set once at import time)
+FFMPEG  = _find_tool("ffmpeg")
+FFPROBE = _find_tool("ffprobe")
+PIPER   = _find_tool("piper")
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
@@ -55,14 +88,13 @@ log = logging.getLogger("spike.render")
 # Step 0: Dependency checks
 # ---------------------------------------------------------------------------
 def check_dependencies() -> dict[str, str | bool]:
-    """Verify all required tools are on PATH before proceeding."""
+    """Verify all required tools are reachable before proceeding."""
     log.info("Checking dependencies...")
     results: dict[str, str | bool] = {}
 
-    for tool in ("ffmpeg", "ffprobe", "piper"):
-        path = shutil.which(tool)
-        results[tool] = path or False
-        status = f"  {'✅' if path else '❌'} {tool}: {path or 'NOT FOUND'}"
+    for tool, resolved in [("ffmpeg", FFMPEG), ("ffprobe", FFPROBE), ("piper", PIPER)]:
+        results[tool] = resolved or False
+        status = f"  {'✅' if resolved else '❌'} {tool}: {resolved or 'NOT FOUND'}"
         log.info(status)
 
     # Python packages
@@ -298,7 +330,7 @@ def generate_test_card(output_path: Path, duration_seconds: float) -> Path:
     log.info(f"Generating {duration_seconds:.1f}s test card background (1080x1920)...")
 
     cmd = [
-        "ffmpeg", "-y",
+        FFMPEG, "-y",
         # Input: color source (dark navy background)
         "-f", "lavfi",
         "-i", f"color=c=0x0D1B2A:size=1080x1920:rate=30:duration={duration_seconds}",
@@ -323,7 +355,7 @@ def generate_test_card(output_path: Path, duration_seconds: float) -> Path:
         log.debug(result.stderr)
         # Fallback: plain color, no text
         cmd_fallback = [
-            "ffmpeg", "-y",
+            FFMPEG, "-y",
             "-f", "lavfi",
             "-i", f"color=c=0x0D1B2A:size=1080x1920:rate=30:duration={duration_seconds}",
             "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p", "-an",
@@ -359,22 +391,35 @@ def compose_reel(
     """
     log.info("Composing final Reel...")
 
-    # FFmpeg requires forward slashes in filtergraph string paths
-    sub_path_ffmpeg = str(subtitle_path).replace("\\", "/").replace(":", "\\:")
-    fonts_path_ffmpeg = str(font_dir).replace("\\", "/")
+    # FFmpeg subtitle filter path escaping on Windows:
+    # - Backslashes must be escaped as \\
+    # - Drive colons must be escaped as \:
+    # - The fontsdir option is omitted when the directory is empty (libass uses system fonts)
+    sub_path_ffmpeg = (
+        str(subtitle_path)
+        .replace("\\", "\\\\")   # D:\path → D:\\path
+        .replace(":", "\\:")     # D\\: → D\\\\:  (escapes drive colon)
+    )
 
-    # Build filtergraph:
-    # [0:v] scale to exactly 1080x1920 (safety) → subtitle burn-in → output
-    # [1:a] loudness normalization → output
+    # Only pass fontsdir if the fonts directory actually contains font files
+    font_files = list(font_dir.glob("*.ttf")) + list(font_dir.glob("*.otf"))
+    if font_files:
+        fonts_path_ffmpeg = str(font_dir).replace("\\", "/")
+        subtitle_filter = f"subtitles='{sub_path_ffmpeg}':fontsdir='{fonts_path_ffmpeg}'"
+    else:
+        # libass will fall back to system fonts (Arial/sans-serif)
+        subtitle_filter = f"subtitles='{sub_path_ffmpeg}'"
+        log.info("  No custom fonts found — libass will use system fonts")
+
     filter_complex = (
         f"[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
         f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2,"
-        f"subtitles='{sub_path_ffmpeg}':fontsdir='{fonts_path_ffmpeg}'[vout];"
+        f"{subtitle_filter}[vout];"
         f"[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[aout]"
     )
 
     cmd = [
-        "ffmpeg", "-y",
+        FFMPEG, "-y",
         "-i", str(video_path),   # [0:v] background video
         "-i", str(audio_path),   # [1:a] narration audio
         "-filter_complex", filter_complex,
@@ -421,7 +466,7 @@ def run_qc(video_path: Path) -> bool:
     passed = True
 
     probe_cmd = [
-        "ffprobe", "-v", "quiet",
+        FFPROBE, "-v", "quiet",
         "-print_format", "json",
         "-show_streams", "-show_format",
         str(video_path),
@@ -513,7 +558,7 @@ def main() -> int:
     whisper_ok = bool(deps.get("faster_whisper"))
 
     if not ffmpeg_ok or not ffprobe_ok:
-        log.error("FFmpeg/FFprobe missing. Install via: winget install Gyan.FFmpeg")
+        log.error("FFmpeg/FFprobe not found. Ensure it's installed and PATH is set.")
         return 1
 
     # --- Load script ---
@@ -529,9 +574,9 @@ def main() -> int:
     else:
         log.warning("⚠️  Piper TTS not found — generating silent audio placeholder")
         wav_path = OUTPUT_DIR / "narration_silent.wav"
-        # Generate silent audio of correct duration
+        # Generate silent audio of correct duration using resolved FFMPEG path
         result = subprocess.run([
-            "ffmpeg", "-y",
+            FFMPEG, "-y",
             "-f", "lavfi", "-i", f"anullsrc=r=44100:cl=stereo:d={total_duration}",
             "-c:a", "pcm_s16le",
             str(wav_path),
@@ -624,3 +669,4 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 if __name__ == "__main__":
     sys.exit(main())
+
