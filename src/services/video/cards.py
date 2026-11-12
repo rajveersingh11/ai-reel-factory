@@ -120,3 +120,4 @@ def render_scene_card(
         canvas.save(output_path, "PNG")
 
     return canvas
+
