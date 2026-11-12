@@ -9,17 +9,27 @@ This file tracks the licensing status of every dependency, model, font, and medi
 
 | Package | License | Commercial Use | Notes |
 |---------|---------|----------------|-------|
-| FastAPI | MIT | ✅ Yes | |
-| Pydantic | MIT | ✅ Yes | |
-| SQLAlchemy | MIT | ✅ Yes | |
-| Celery | BSD-3-Clause | ✅ Yes | |
-| psycopg2-binary | LGPL-3.0 | ✅ Yes | Dynamic linking; LGPL compliant |
-| faster-whisper | MIT | ✅ Yes | |
-| piper-tts | MIT | ✅ Yes | Package itself; check voice model separately |
-| httpx | BSD-3-Clause | ✅ Yes | |
-| rich | MIT | ✅ Yes | |
-| uvicorn | BSD-3-Clause | ✅ Yes | |
-| pytest | MIT | ✅ Yes | Dev only |
+| FastAPI | MIT | ✅ Yes | Web framework |
+| Uvicorn | BSD-3-Clause | ✅ Yes | ASGI server |
+| Pydantic / Pydantic-Settings | MIT | ✅ Yes | Data validation & config |
+| SQLAlchemy | MIT | ✅ Yes | SQL toolkit & ORM |
+| Alembic | MIT | ✅ Yes | DB migrations |
+| Celery | BSD-3-Clause | ✅ Yes | Distributed task queue |
+| Redis | MIT / BSD-3-Clause | ✅ Yes | Python Redis client |
+| psycopg2-binary | LGPL-3.0 | ✅ Yes | PostgreSQL driver |
+| asyncpg | Apache-2.0 | ✅ Yes | Async PostgreSQL driver |
+| faster-whisper | MIT | ✅ Yes | Fast Whisper ASR |
+| piper-tts | MIT | ✅ Yes | Speech synthesis |
+| onnxruntime | MIT | ✅ Yes | ONNX model execution |
+| Pillow | HPND / MIT-like | ✅ Yes | Image & scene card rendering |
+| Streamlit | Apache-2.0 | ✅ Yes | Local review dashboard |
+| httpx | BSD-3-Clause | ✅ Yes | Async HTTP client |
+| duckduckgo-search | MIT | ✅ Yes | Topic research engine |
+| beautifulsoup4 | MIT | ✅ Yes | HTML parsing for fact sources |
+| rich | MIT | ✅ Yes | Console logging |
+| python-dotenv | BSD-3-Clause | ✅ Yes | Environment loader |
+| PyYAML | MIT | ✅ Yes | Brand YAML parser |
+| pytest | MIT | ✅ Yes | Dev / Testing only |
 
 ---
 
