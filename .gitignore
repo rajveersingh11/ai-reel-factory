@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Environment files — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+
+# Storage — generated assets, never commit large media
+storage/cache/*
+storage/output/*
+!storage/cache/.gitkeep
+!storage/output/.gitkeep
+
+# Spike outputs
+spikes/phase1_rendering/output/
+spikes/phase1_rendering/*.mp4
+spikes/phase1_rendering/*.wav
+spikes/phase1_rendering/*.ass
+spikes/phase1_rendering/*.srt
+
+# Downloaded model weights — too large for git
+assets/models/
+*.onnx
+*.bin
+*.gguf
+
+# Downloaded fonts (committed intentionally, but keep large font families out)
+# assets/fonts/ is tracked — only commit what's needed
+
+# IDE
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb

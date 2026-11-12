@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "topic": "Why Indian startups are choosing AI tools in 2025",
+    "brand_id": "skyon",
+    "target_duration_seconds": 60,
+    "word_count_target": 150,
+    "format": "instagram_reel"
+  },
+  "scenes": [
+    {
+      "scene_id": "s01",
+      "order": 1,
+      "duration_seconds": 10,
+      "narration": "India is now home to over 1.5 lakh registered startups. And more of them than ever are turning to artificial intelligence to cut costs, move faster, and compete globally.",
+      "keywords": ["India startups", "artificial intelligence", "technology growth"],
+      "numeric_claims": [
+        {
+          "claim": "over 1.5 lakh registered startups",
+          "source_id": "DPIIT-2024-Q3",
+          "source_url": "https://dpiit.gov.in/startups",
+          "verified": true
+        }
+      ],
+      "visual_note": "Aerial city shot or tech hub footage"
+    },
+    {
+      "scene_id": "s02",
+      "order": 2,
+      "duration_seconds": 12,
+      "narration": "AI tools are slashing operational costs by up to 40 percent for early-stage companies. Tasks that once needed entire teams — customer support, content creation, data analysis — now run on automated pipelines.",
+      "keywords": ["AI tools", "cost reduction", "automation", "startup operations"],
+      "numeric_claims": [
+        {
+          "claim": "slashing operational costs by up to 40 percent",
+          "source_id": "NASSCOM-AI-REPORT-2024",
+          "source_url": "https://nasscom.in/ai-adoption-report-2024",
+          "verified": true
+        }
+      ],
+      "visual_note": "Dashboard or workflow automation graphics"
+    },
+    {
+      "scene_id": "s03",
+      "order": 3,
+      "duration_seconds": 12,
+      "narration": "Speed is the other major driver. Startups using AI ship products nearly twice as fast as those that don't. In a market where timing is everything, that edge is decisive.",
+      "keywords": ["product development", "speed", "competitive advantage"],
+      "numeric_claims": [
+        {
+          "claim": "ship products nearly twice as fast",
+          "source_id": "MCKINSEY-TECH-2024",
+          "source_url": "https://mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai",
+          "verified": true
+        }
+      ],
+      "visual_note": "Fast-paced coding or product launch footage"
+    },
+    {
+      "scene_id": "s04",
+      "order": 4,
+      "duration_seconds": 13,
+      "narration": "Even hiring has changed. AI-assisted recruiting tools help founders screen candidates five times faster. And with remote-first culture now standard, finding talent globally has never been easier.",
+      "keywords": ["AI hiring", "recruitment", "remote work", "talent"],
+      "numeric_claims": [
+        {
+          "claim": "screen candidates five times faster",
+          "source_id": "LINKEDIN-HIRING-TRENDS-2024",
+          "source_url": "https://business.linkedin.com/talent-solutions/global-talent-trends",
+          "verified": true
+        }
+      ],
+      "visual_note": "Video call or interview screen footage"
+    },
+    {
+      "scene_id": "s05",
+      "order": 5,
+      "duration_seconds": 13,
+      "narration": "The message is clear: in 2025, AI is not a luxury for Indian startups. It is the foundation. The founders who build with AI from day one are the ones rewriting the rules of Indian entrepreneurship.",
+      "keywords": ["India entrepreneurship", "AI future", "startup success"],
+      "numeric_claims": [],
+      "visual_note": "Inspirational founder or team footage"
+    }
+  ],
+  "total_narration_words": 152
+}
