@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
+from typing import Optional, Any
 import httpx
 
 from src.core.config import settings

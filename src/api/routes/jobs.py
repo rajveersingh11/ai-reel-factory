@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 import socket
 from typing import Optional
+from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
 
+from src.core.config import settings
 from src.core.database import get_db
 from src.models.job import Job, JobStatus
 from src.schemas.job import JobCreateRequest, JobResponse
@@ -23,14 +25,16 @@ log = logging.getLogger("reelfactory.api")
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
-def _is_redis_alive(host: str = "localhost", port: int = 6379) -> bool:
+def _is_redis_alive(redis_url: Optional[str] = None) -> bool:
     """Non-blocking 50ms probe to check if Redis broker is actively listening."""
+    url = redis_url or settings.REDIS_URL
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.05)
-        res = s.connect_ex((host, port))
-        s.close()
-        return res == 0
+        parsed = urlparse(url)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 6379
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.05)
+            return s.connect_ex((host, port)) == 0
     except Exception:
         return False
 

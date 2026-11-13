@@ -107,7 +107,21 @@ class QCEngine:
             "-show_streams", "-show_format",
             str(video_path),
         ]
-        probe_res = subprocess.run(probe_cmd, capture_output=True, text=True)
+        try:
+            probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            report.checks.append(
+                QCCheckItem(
+                    check_name="Container Integrity",
+                    passed=False,
+                    actual_value="ffprobe timed out after 30s",
+                    expected_value="Valid media container",
+                    is_fatal=True,
+                )
+            )
+            report.fatal_errors = 1
+            return report
+
         if probe_res.returncode != 0:
             report.checks.append(
                 QCCheckItem(
@@ -225,14 +239,18 @@ class QCEngine:
             "-af", "silencedetect=noise=-40dB:d=1.5",
             "-f", "null", "-",
         ]
-        silence_res = subprocess.run(silence_cmd, capture_output=True, text=True)
-        # Check if silence gaps exist before trailing end of video
-        has_mid_silence = "silence_duration" in silence_res.stderr
+        try:
+            silence_res = subprocess.run(silence_cmd, capture_output=True, text=True, timeout=60)
+            has_mid_silence = "silence_duration" in silence_res.stderr
+            silence_val = "Silence Detected" if has_mid_silence else "Continuous Audio"
+        except subprocess.TimeoutExpired:
+            has_mid_silence = True
+            silence_val = "silence detection timed out after 60s"
         report.checks.append(
             QCCheckItem(
                 check_name="Silence Gaps (< 1.5s)",
                 passed=not has_mid_silence,
-                actual_value="Silence Detected" if has_mid_silence else "Continuous Audio",
+                actual_value=silence_val,
                 expected_value="Continuous Audio",
                 is_fatal=False,
             )

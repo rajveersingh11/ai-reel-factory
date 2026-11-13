@@ -313,7 +313,7 @@ with tab_video:
         with v_col2:
             st.markdown("#### 🔍 Deterministic QC Report")
             qc = job.qc_report or {}
-            passed = qc.get("all_passed", False)
+            passed = qc.get("overall_passed", False) or qc.get("all_passed", False)
 
             if passed:
                 st.success("🎯 ALL QC CHECKS PASSED — READY FOR SOCIAL PUBLISHING")
@@ -321,12 +321,21 @@ with tab_video:
                 st.error("⚠️ QC CHECKS FAILED OR INCOMPLETE")
 
             # QC checklist
-            checks = qc.get("checks", {})
-            st.checkbox("Resolution: 1080x1920 (9:16)", value=checks.get("resolution", False), disabled=True)
-            st.checkbox("Duration: 55.0s – 65.0s", value=checks.get("duration", False), disabled=True)
-            st.checkbox("Loudness: -14 LUFS target", value=checks.get("loudness", False), disabled=True)
-            st.checkbox("Silence: No gap > 1.5s", value=checks.get("silence", False), disabled=True)
-            st.checkbox("Moov Faststart (Web Optimized)", value=checks.get("faststart", False), disabled=True)
+            checks_raw = qc.get("checks", [])
+            checks_map = {}
+            if isinstance(checks_raw, list):
+                for c in checks_raw:
+                    if isinstance(c, dict):
+                        checks_map[c.get("check_name", "").lower()] = c.get("passed", False)
+            elif isinstance(checks_raw, dict):
+                checks_map = {k.lower(): v for k, v in checks_raw.items()}
+
+            st.checkbox("Resolution: 1080x1920 (9:16)", value=checks_map.get("resolution", False), disabled=True)
+            st.checkbox("Duration: 55.0s – 65.0s", value=checks_map.get("video duration", checks_map.get("duration", False)), disabled=True)
+            st.checkbox("Video Codec: H.264 (yuv420p)", value=checks_map.get("video codec", False) and checks_map.get("pixel format", True), disabled=True)
+            st.checkbox("Audio Codec: AAC", value=checks_map.get("audio codec", False), disabled=True)
+            st.checkbox("Silence: No gap > 1.5s", value=checks_map.get("silence gaps (< 1.5s)", checks_map.get("silence", False)), disabled=True)
+            st.checkbox("Container Integrity / Faststart", value=checks_map.get("container integrity", checks_map.get("container format", False)), disabled=True)
 
             with st.expander("View Full ffprobe & EBU R128 Data"):
                 st.json(qc)

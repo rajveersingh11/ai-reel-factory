@@ -69,9 +69,12 @@ class ProductionPipeline:
             "-of", "default=noprint_wrappers=1:nokey=1",
             str(wav_path),
         ]
-        dur_res = subprocess.run(duration_cmd, capture_output=True, text=True)
         try:
+            dur_res = subprocess.run(duration_cmd, capture_output=True, text=True, timeout=30)
             total_audio_duration = float(dur_res.stdout.strip())
+        except subprocess.TimeoutExpired:
+            log.warning("ffprobe audio duration probe timed out after 30s. Using 58.0s default.")
+            total_audio_duration = 58.0
         except Exception:
             total_audio_duration = 58.0
         log.info(f"Total narration audio duration: {total_audio_duration:.2f}s")
@@ -154,7 +157,11 @@ class ProductionPipeline:
             "-an",
             str(bg_video_path),
         ]
-        bg_res = subprocess.run(bg_cmd, capture_output=True, text=True)
+        try:
+            bg_res = subprocess.run(bg_cmd, capture_output=True, text=True, timeout=180)
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError("Background visual assembly timed out after 180s") from exc
+
         if bg_res.returncode != 0:
             raise RuntimeError(f"Visual assembly failed: {bg_res.stderr}")
 
@@ -207,7 +214,10 @@ class ProductionPipeline:
         ]
 
         t0 = time.perf_counter()
-        compose_res = subprocess.run(compose_cmd, capture_output=True, text=True)
+        try:
+            compose_res = subprocess.run(compose_cmd, capture_output=True, text=True, timeout=240)
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError("Final video composition and subtitle burn timed out after 240s") from exc
         render_sec = time.perf_counter() - t0
 
         if compose_res.returncode != 0:

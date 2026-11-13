@@ -57,15 +57,24 @@ class TTSEngine:
         ]
 
         t0 = time.perf_counter()
-        result = subprocess.run(
-            cmd,
-            input=text,
-            text=True,
-            capture_output=True,
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                input=text,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if output_wav.exists():
+                output_wav.unlink(missing_ok=True)
+            raise TimeoutError(f"Piper TTS synthesis timed out after 60s for {len(text.split())} words") from exc
+
         elapsed = time.perf_counter() - t0
 
         if result.returncode != 0:
+            if output_wav.exists():
+                output_wav.unlink(missing_ok=True)
             raise RuntimeError(f"Piper TTS synthesis failed:\n{result.stderr}")
 
         size_kb = output_wav.stat().st_size // 1024

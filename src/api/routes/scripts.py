@@ -174,18 +174,6 @@ def submit_script_decision(
             "script": new_script,
         }
 
-    elif action == "reject":
-        job.status = JobStatus.REJECTED
-        job.stage = "rejected_by_human"
-        db.commit()
-        log.info(f"Job {job_id} REJECTED by human operator.")
-        return {
-            "job_id": job.id,
-            "decision": "rejected",
-            "status": job.status,
-            "message": "Script rejected. Job cancelled.",
-        }
-
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
