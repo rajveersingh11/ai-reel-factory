@@ -26,6 +26,8 @@ class BrandConfig(BaseModel):
     accent_color: str = "#00E5FF"
     font_family: str = "Inter Bold"
     topics: list[str] = Field(default_factory=list)
+    bgm_track: Optional[str] = None
+    bgm_volume: float = Field(default=0.18, ge=0.0, le=1.0)
 
 
 class BrandRegistry:

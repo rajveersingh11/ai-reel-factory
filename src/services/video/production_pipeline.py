@@ -23,6 +23,7 @@ from src.core.config import PROJECT_ROOT, settings
 from src.schemas.brand import brand_registry
 from src.schemas.script import ScriptData
 from src.services.audio.tts_engine import TTSEngine
+from src.services.audio.bgm_engine import BGMEngine
 from src.services.audio.subtitle_generator import SubtitleGenerator
 from src.services.media.stock_matcher import StockMatcher
 from src.services.video.cards import render_scene_card
@@ -39,6 +40,7 @@ class ProductionPipeline:
         self.brand_config = brand_registry.get(self.brand_id)
         self.matcher = StockMatcher(brand_id=self.brand_id)
         self.tts = TTSEngine()
+        self.bgm_engine = BGMEngine()
         self.subtitles = SubtitleGenerator(font_name=self.brand_config.font_family)
         self.qc = QCEngine()
 
@@ -227,6 +229,27 @@ class ProductionPipeline:
         )
 
         # ---------------------------------------------------------------------
+        # Step 4.5: Master Audio with Background Music & Ducking (Option 2)
+        # ---------------------------------------------------------------------
+        audio_for_composition = wav_path
+        bgm_track = self.bgm_engine.resolve_bgm_track(self.brand_config)
+        if bgm_track and bgm_track.exists():
+            master_audio_path = output_dir / "master_audio.wav"
+            try:
+                self.bgm_engine.apply_ducking(
+                    voice_path=wav_path,
+                    bgm_path=bgm_track,
+                    output_path=master_audio_path,
+                    bgm_volume=self.brand_config.bgm_volume,
+                    target_loudness_lufs=-14.0,
+                )
+                if master_audio_path.exists() and master_audio_path.stat().st_size > 1000:
+                    audio_for_composition = master_audio_path
+                    log.info(f"Sidechain ducked audio master created successfully: {master_audio_path.name}")
+            except Exception as exc:
+                log.warning(f"Audio ducking failed ({exc}); falling back to clean narration")
+
+        # ---------------------------------------------------------------------
         # Step 5: Final Compositing (Burn Subtitles + EBU R128 Loudness)
         # ---------------------------------------------------------------------
         final_video_path = output_dir / f"{job_id}_reel_final.mp4"
@@ -245,7 +268,7 @@ class ProductionPipeline:
         compose_cmd = [
             FFMPEG, "-y",
             "-i", str(bg_video_path),
-            "-i", str(wav_path),
+            "-i", str(audio_for_composition),
             "-filter_complex", filter_complex,
             "-map", "[vout]",
             "-map", "[aout]",

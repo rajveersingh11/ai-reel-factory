@@ -14,6 +14,8 @@ brands:
       - "Cloud Architecture & Cost Optimization"
       - "Automated Engineering Workflows"
       - "B2B SaaS Velocity"
+    bgm_track: "tech_ambient.wav"
+    bgm_volume: 0.18
 
   r4realty:
     id: "r4realty"
@@ -30,4 +32,6 @@ brands:
       - "Commercial Real Estate Yield Trends"
       - "Luxury Waterfront Developments"
       - "Real Estate Capital Allocation"
+    bgm_track: "luxury_ambient.wav"
+    bgm_volume: 0.16
 
