@@ -18,17 +18,30 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 def _get_font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load Segoe UI, Arial, or fallback font."""
+    """Load cross-platform Segoe UI, DejaVu, Arial, Liberation, or fallback font."""
     font_names = (
-        ["segoeuib.ttf", "arialbd.ttf"] if bold else ["segoeui.ttf", "arial.ttf"]
+        ["segoeuib.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf", "LiberationSans-Bold.ttf"]
+        if bold else
+        ["segoeui.ttf", "arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"]
     )
-    for name in font_names:
-        font_path = os.path.join(r"C:\Windows\Fonts", name)
-        if os.path.exists(font_path):
-            try:
-                return ImageFont.truetype(font_path, size)
-            except Exception:
-                pass
+    search_dirs = [
+        Path(r"C:\Windows\Fonts"),
+        Path(__file__).resolve().parent.parent.parent.parent / "assets" / "fonts",
+        Path("/usr/share/fonts"),
+        Path("/usr/local/share/fonts"),
+        Path("/Library/Fonts"),
+        Path("/System/Library/Fonts"),
+    ]
+    for directory in search_dirs:
+        if not directory.exists():
+            continue
+        for name in font_names:
+            font_path = directory / name
+            if font_path.exists():
+                try:
+                    return ImageFont.truetype(str(font_path), size)
+                except Exception:
+                    pass
     return ImageFont.load_default()
 
 
@@ -90,11 +103,16 @@ def render_scene_card(
     # Rounded card background
     draw.rounded_rectangle(card_box, radius=32, fill=(20, 35, 60, 220), outline=(0, 180, 255, 140), width=3)
 
-    # Card Accent Tag
-    tag_box = [(110, 360), (380, 420)]
+    # Card Accent Tag (Dynamically sized to fit brand/category)
+    tag_text = f"{category_tag.upper()} INSIGHT" if category_tag else f"{brand_name.upper()} INSIGHT"
+    font_tag = _get_font(24, bold=True)
+    try:
+        tag_w = draw.textlength(tag_text, font=font_tag)
+    except AttributeError:
+        tag_w = len(tag_text) * 14
+    tag_box = [(110, 360), (min(950, int(130 + tag_w + 30)), 420)]
     draw.rounded_rectangle(tag_box, radius=14, fill=(0, 180, 255, 40), outline=(0, 200, 255, 200), width=2)
-    font_tag = _get_font(26, bold=True)
-    draw.text((130, 372), "STARTUP INSIGHT", font=font_tag, fill=(0, 225, 255, 255))
+    draw.text((125, 372), tag_text, font=font_tag, fill=(0, 225, 255, 255))
 
     # Hero Metric (e.g. "1.5 LAKH+", "40% COST CUT")
     font_hero = _get_font(88, bold=True)

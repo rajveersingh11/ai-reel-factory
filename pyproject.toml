@@ -52,10 +52,8 @@ testpaths = ["tests"]
 project-includes = ["src/**/*.py", "tests/**/*.py"]
 project-excludes = [".venv", "storage", "assets", "spikes"]
 search-path = [
-    "d:/Projects/ai-reel-factory",
-    "d:/Projects/ai-reel-factory/src",
-    "C:/Users/HP/AppData/Roaming/Python/Python314/site-packages",
-    "C:/Python314/Lib/site-packages",
+    ".",
+    "src",
 ]
 
 # ---------------------------------------------------------------------------
