@@ -74,3 +74,14 @@ def test_stock_matcher_uses_online_stock_when_local_is_missing(tmp_path):
     assert "online_stock_clip.mp4" in res.footage_path
     mock_client.search_stock.assert_called_once()
 
+
+def test_stock_client_resilient_to_missing_settings_attributes(monkeypatch, tmp_path):
+    """Client defaults gracefully even if Settings object lacks stock keys."""
+    from src.services.media import stock_client as sc_module
+    mock_settings = MagicMock(spec=[])  # Empty object with no attributes
+    monkeypatch.setattr(sc_module, "settings", mock_settings)
+
+    client = StockAPIClient(cache_dir=tmp_path)
+    assert client.pexels_key == ""
+    assert client.pixabay_key == ""
+

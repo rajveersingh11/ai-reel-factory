@@ -33,9 +33,11 @@ class StockAPIClient:
         cache_dir: Optional[Path] = None,
         mock_mode: bool = False,
     ):
-        self.pexels_key = pexels_key or settings.PEXELS_API_KEY
-        self.pixabay_key = pixabay_key or settings.PIXABAY_API_KEY
-        self.cache_dir = cache_dir or settings.STOCK_CACHE_DIR
+        self.pexels_key = pexels_key or getattr(settings, "PEXELS_API_KEY", "")
+        self.pixabay_key = pixabay_key or getattr(settings, "PIXABAY_API_KEY", "")
+        self.cache_dir = cache_dir or getattr(
+            settings, "STOCK_CACHE_DIR", settings.STORAGE_ROOT / "cache" / "stock"
+        )
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.mock_mode = mock_mode
 

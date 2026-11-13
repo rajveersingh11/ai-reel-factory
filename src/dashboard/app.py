@@ -162,6 +162,9 @@ b_col4.markdown(f"**Created:** `{job.created_at.strftime('%Y-%m-%d %H:%M')}`")
 
 st.markdown("---")
 
+if job.error_message:
+    st.error(f"⚠️ **Execution Alert:** {job.error_message}")
+
 # Main Action Tabs
 tab_script, tab_video, tab_publish = st.tabs([
     "📝 Gate 1: Script Review",
@@ -240,6 +243,7 @@ with tab_script:
             if st.button("✅ Approve Script", type="primary", use_container_width=True):
                 job.status = JobStatus.APPROVED
                 job.stage = "script_approved"
+                job.error_message = None
                 db.commit()
                 st.success("Script approved! Triggering video production...")
                 with st.spinner("Rendering multi-clip 1080x1920 Reel with subtitles..."):
@@ -306,7 +310,18 @@ with tab_video:
     st.markdown("### Rendered Video Preview & Deterministic QC Inspection")
 
     if not job.video_path or not Path(job.video_path).exists():
-        st.info("No rendered video exists yet. Approve the script in Gate 1 to render.")
+        if job.status == JobStatus.FAILED:
+            st.error(f"❌ Video rendering encountered an error: {job.error_message or 'Unknown error'}")
+            if job.script_data and st.button("🔄 Retry Video Rendering", type="primary", use_container_width=True):
+                job.status = JobStatus.APPROVED
+                job.stage = "script_approved"
+                job.error_message = None
+                db.commit()
+                with st.spinner("Re-rendering 1080x1920 Reel with subtitles & BGM..."):
+                    execute_job_pipeline(job.id)
+                st.rerun()
+        else:
+            st.info("No rendered video exists yet. Approve the script in Gate 1 to render.")
     else:
         v_col1, v_col2 = st.columns([1, 1])
 
