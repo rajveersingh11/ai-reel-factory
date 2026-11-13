@@ -133,30 +133,80 @@ class ProductionPipeline:
         # Step 3: Build Visual Timeline (FFmpeg Concat)
         # ---------------------------------------------------------------------
         concat_file = output_dir / "visual_concat.txt"
-        concat_lines = []
-        for v_path, dur in scene_visual_files:
-            # Use forward slashes for FFmpeg concat demuxer
-            resolved_str = v_path.resolve().as_posix()
-            concat_lines.append(f"file '{resolved_str}'")
-            concat_lines.append(f"duration {dur:.2f}")
-        # Concat demuxer requirement: repeat last file
-        concat_lines.append(f"file '{scene_visual_files[-1][0].resolve().as_posix()}'")
-        concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
-
         bg_video_path = output_dir / "assembled_background.mp4"
-        bg_cmd = [
-            FFMPEG, "-y",
-            "-f", "concat",
-            "-safe", "0",
-            "-i", str(concat_file),
-            "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,format=yuv420p",
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "21",
-            "-pix_fmt", "yuv420p",
-            "-an",
-            str(bg_video_path),
-        ]
+
+        has_video_clips = any(p.suffix.lower() in (".mp4", ".mov", ".mkv") for p, _ in scene_visual_files)
+
+        if has_video_clips:
+            # When mixing video footage and graphic cards, normalize each to an identical 1080x1920 30fps clip
+            log.info("Visual timeline contains video clips: standardizing micro-clips for seamless concat...")
+            normalized_clips: list[Path] = []
+            for idx, (v_path, dur) in enumerate(scene_visual_files):
+                clip_out = cards_dir / f"norm_scene_{idx + 1}.mp4"
+                if v_path.suffix.lower() == ".png":
+                    norm_cmd = [
+                        FFMPEG, "-y",
+                        "-loop", "1",
+                        "-i", str(v_path),
+                        "-t", f"{dur:.2f}",
+                        "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30",
+                        "-c:v", "libx264",
+                        "-preset", "veryfast",
+                        "-crf", "22",
+                        "-pix_fmt", "yuv420p",
+                        "-an",
+                        str(clip_out),
+                    ]
+                else:
+                    norm_cmd = [
+                        FFMPEG, "-y",
+                        "-i", str(v_path),
+                        "-t", f"{dur:.2f}",
+                        "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30",
+                        "-c:v", "libx264",
+                        "-preset", "veryfast",
+                        "-crf", "22",
+                        "-pix_fmt", "yuv420p",
+                        "-an",
+                        str(clip_out),
+                    ]
+                subprocess.run(norm_cmd, capture_output=True, text=True, timeout=60, check=True)
+                normalized_clips.append(clip_out)
+
+            concat_lines = [f"file '{c.resolve().as_posix()}'" for c in normalized_clips]
+            concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
+            bg_cmd = [
+                FFMPEG, "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_file),
+                "-c", "copy",
+                str(bg_video_path),
+            ]
+        else:
+            # All visual files are static PNG scene cards -> ultra-fast direct image demuxing
+            concat_lines = []
+            for v_path, dur in scene_visual_files:
+                resolved_str = v_path.resolve().as_posix()
+                concat_lines.append(f"file '{resolved_str}'")
+                concat_lines.append(f"duration {dur:.2f}")
+            concat_lines.append(f"file '{scene_visual_files[-1][0].resolve().as_posix()}'")
+            concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
+
+            bg_cmd = [
+                FFMPEG, "-y",
+                "-f", "concat",
+                "-safe", "0",
+                "-i", str(concat_file),
+                "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,format=yuv420p",
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "21",
+                "-pix_fmt", "yuv420p",
+                "-an",
+                str(bg_video_path),
+            ]
+
         try:
             bg_res = subprocess.run(bg_cmd, capture_output=True, text=True, timeout=180)
         except subprocess.TimeoutExpired as exc:

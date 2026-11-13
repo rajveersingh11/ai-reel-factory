@@ -62,5 +62,11 @@ class Settings(BaseSettings):
     INSTAGRAM_BUSINESS_ACCOUNT_ID: str = ""
     PUBLIC_BASE_URL: str = "http://localhost:8000"
 
+    # --- Free Stock Footage APIs (Pexels & Pixabay) ---
+    PEXELS_API_KEY: str = ""
+    PIXABAY_API_KEY: str = ""
+    ENABLE_STOCK_API: bool = True
+    STOCK_CACHE_DIR: Path = PROJECT_ROOT / "storage" / "cache" / "stock"
+
 
 settings = Settings()
