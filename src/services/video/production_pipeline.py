@@ -24,7 +24,7 @@ from src.schemas.brand import brand_registry
 from src.schemas.script import ScriptData
 from src.services.audio.tts_engine import TTSEngine
 from src.services.audio.bgm_engine import BGMEngine
-from src.services.audio.subtitle_generator import SubtitleGenerator
+from src.services.audio.subtitle_generator import SubtitleGenerator, hex_to_ass_color
 from src.services.media.stock_matcher import StockMatcher
 from src.services.video.cards import render_scene_card
 from src.services.video.qc_engine import QCEngine, QCReport, FFMPEG, FFPROBE
@@ -41,7 +41,12 @@ class ProductionPipeline:
         self.matcher = StockMatcher(brand_id=self.brand_id)
         self.tts = TTSEngine()
         self.bgm_engine = BGMEngine()
-        self.subtitles = SubtitleGenerator(font_name=self.brand_config.font_family)
+        brand_highlight = hex_to_ass_color(self.brand_config.accent_color or self.brand_config.primary_color)
+        self.subtitles = SubtitleGenerator(
+            font_name=self.brand_config.font_family,
+            highlight_color=brand_highlight,
+            words_per_chunk=4,
+        )
         self.qc = QCEngine()
 
     def produce(
@@ -254,8 +259,11 @@ class ProductionPipeline:
         # ---------------------------------------------------------------------
         final_video_path = output_dir / f"{job_id}_reel_final.mp4"
 
-        # Escape subtitle path for FFmpeg filtergraph
-        sub_escaped = str(ass_path).replace("\\", "\\\\").replace(":", "\\:")
+        # Format subtitle path (relative POSIX if in workspace, or escaped POSIX for FFmpeg)
+        try:
+            sub_escaped = ass_path.relative_to(PROJECT_ROOT).as_posix()
+        except ValueError:
+            sub_escaped = ass_path.as_posix().replace(":", "\\:")
         subtitle_filter = f"subtitles='{sub_escaped}'"
 
         filter_complex = (
