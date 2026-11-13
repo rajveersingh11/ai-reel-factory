@@ -31,8 +31,13 @@ from src.schemas.brand import BrandRegistry
 from src.services.publishing.instagram import InstagramPublisher
 from src.workers.tasks import execute_job_pipeline
 
-# Ensure DB tables exist
-init_db()
+# Ensure DB tables exist (cached once per process)
+@st.cache_resource
+def ensure_database_ready():
+    init_db()
+    return True
+
+ensure_database_ready()
 
 # Load brand registry
 registry = BrandRegistry()
@@ -382,7 +387,7 @@ with tab_publish:
             st.warning("⚠️ Gate 2 video approval is required before this video can be published.")
         else:
             publisher = InstagramPublisher()
-            default_caption = publisher._format_caption(job)
+            default_caption = publisher.format_caption(job)
 
             st.markdown("#### Post Caption & AI Transparency Compliance")
             custom_caption = st.text_area("Caption (includes mandatory #AIgenerated tag)", value=default_caption, height=180)

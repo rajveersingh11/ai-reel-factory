@@ -225,6 +225,19 @@ class ProductionPipeline:
 
         log.info(f"Video rendered in {render_sec:.1f}s -> {final_video_path.name}")
 
+        # Cleanup bulky intermediate assembly files to prevent unbounded disk growth
+        if final_video_path.exists() and final_video_path.stat().st_size > 0:
+            if bg_video_path.exists():
+                try:
+                    bg_video_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+            if concat_file.exists():
+                try:
+                    concat_file.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
         # ---------------------------------------------------------------------
         # Step 6: Deterministic QC Verification (Requirement 4.E)
         # ---------------------------------------------------------------------

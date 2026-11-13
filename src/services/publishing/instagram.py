@@ -52,6 +52,10 @@ class InstagramPublisher:
         else:
             self.mock_mode = not bool(self.access_token)
 
+    def format_caption(self, job: Job) -> str:
+        """Construct compliant Instagram caption with brand tags & AI disclosure."""
+        return self._format_caption(job)
+
     def _format_caption(self, job: Job) -> str:
         """Construct compliant Instagram caption with brand tags & AI disclosure."""
         brand = self.brand_registry.get(job.brand_id)
